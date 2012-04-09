@@ -1080,3 +1080,14 @@ h2 img { vertical-align:middle; }
   height:1px;
   overflow:hidden;
 }
+
+
+#top-menu {
+  background: #008C00;
+  font-size: 1em;
+  padding: 4px 4px 0px 4px;
+}
+
+#header {
+  background-color: #6BBA77;
+}
