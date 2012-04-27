@@ -670,7 +670,9 @@ class QueryTest < ActiveSupport::TestCase
   end
 
   def test_issue_count_with_archived_issues
-    p = Project.generate!( :status => Project::STATUS_ARCHIVED )
+    p = Project.generate! do |project|
+      project.status = Project::STATUS_ARCHIVED
+    end
     i = Issue.generate!( :project => p, :tracker => p.trackers.first )
     assert !i.visible?
 
@@ -767,8 +769,8 @@ class QueryTest < ActiveSupport::TestCase
     end
 
     should "include users of subprojects" do
-      user1 = User.generate_with_protected!
-      user2 = User.generate_with_protected!
+      user1 = User.generate!
+      user2 = User.generate!
       project = Project.find(1)
       Member.create!(:principal => user1, :project => project.children.visible.first, :role_ids => [1])
       @query.project = project

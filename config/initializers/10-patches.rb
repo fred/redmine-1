@@ -1,14 +1,8 @@
-# Patches active_support/core_ext/load_error.rb to support 1.9.3 LoadError message
-if RUBY_VERSION >= '1.9.3'
-  MissingSourceFile::REGEXPS << [/^cannot load such file -- (.+)$/i, 1] 
-end
-
 require 'active_record'
 
 module ActiveRecord
   class Base
     include Redmine::I18n
-
     # Translate attribute names for validation errors display
     def self.human_attribute_name(attr, *args)
       l("field_#{attr.to_s.gsub(/_id$/, '')}", :default => attr)
@@ -35,51 +29,59 @@ module ActionView
       end
     end
   end
+
+  class Resolver
+    def find_all(name, prefix=nil, partial=false, details={}, key=nil, locals=[])
+      cached(key, [name, prefix, partial], details, locals) do
+        if details[:formats] & [:xml, :json]
+          details = details.dup
+          details[:formats] = details[:formats].dup + [:api]
+        end
+        find_templates(name, prefix, partial, details)
+      end
+    end
+  end
 end
 
 ActionView::Base.field_error_proc = Proc.new{ |html_tag, instance| "#{html_tag}" }
 
-module AsynchronousMailer
-  # Adds :async_smtp and :async_sendmail delivery methods
-  # to perform email deliveries asynchronously
-  %w(smtp sendmail).each do |type|
-    define_method("perform_delivery_async_#{type}") do |mail|
+require 'mail'
+
+module DeliveryMethods
+  class AsyncSMTP < ::Mail::SMTP
+    def deliver!(*args)
       Thread.start do
-        send "perform_delivery_#{type}", mail
+        super *args
       end
     end
   end
 
-  # Adds a delivery method that writes emails in tmp/emails for testing purpose
-  def perform_delivery_tmp_file(mail)
-    dest_dir = File.join(Rails.root, 'tmp', 'emails')
-    Dir.mkdir(dest_dir) unless File.directory?(dest_dir)
-    File.open(File.join(dest_dir, mail.message_id.gsub(/[<>]/, '') + '.eml'), 'wb') {|f| f.write(mail.encoded) }
-  end
-end
-
-ActionMailer::Base.send :include, AsynchronousMailer
-
-module TMail
-  # TMail::Unquoter.convert_to_with_fallback_on_iso_8859_1 introduced in TMail 1.2.7
-  # triggers a test failure in test_add_issue_with_japanese_keywords(MailHandlerTest)
-  class Unquoter
-    class << self
-      alias_method :convert_to, :convert_to_without_fallback_on_iso_8859_1
+  class AsyncSendmail < ::Mail::Sendmail
+    def deliver!(*args)
+      Thread.start do
+        super *args
+      end
     end
   end
 
-  # Patch for TMail 1.2.7. See http://www.redmine.org/issues/8751
-  class Encoder
-    def puts_meta(str)
-      add_text str
+  class TmpFile
+    def initialize(*args); end
+
+    def deliver!(mail)
+      dest_dir = File.join(Rails.root, 'tmp', 'emails')
+      Dir.mkdir(dest_dir) unless File.directory?(dest_dir)
+      File.open(File.join(dest_dir, mail.message_id.gsub(/[<>]/, '') + '.eml'), 'wb') {|f| f.write(mail.encoded) }
     end
   end
 end
+
+ActionMailer::Base.add_delivery_method :async_smtp, DeliveryMethods::AsyncSMTP
+ActionMailer::Base.add_delivery_method :async_sendmail, DeliveryMethods::AsyncSendmail
+ActionMailer::Base.add_delivery_method :tmp_file, DeliveryMethods::TmpFile
 
 module ActionController
   module MimeResponds
-    class Responder
+    class Collector
       def api(&block)
         any(:xml, :json, &block)
       end

@@ -347,6 +347,15 @@ class MailHandlerTest < ActiveSupport::TestCase
     assert_equal 'caaf384198bcbc9563ab5c058acd73cd', attachment.digest
   end
 
+  def test_should_ignore_emails_from_locked_users
+    User.find(2).lock!
+
+    MailHandler.any_instance.expects(:dispatch).never
+    assert_no_difference 'Issue.count' do
+      assert_equal false, submit_email('ticket_on_given_project.eml')
+    end
+  end
+
   def test_should_ignore_emails_from_emission_address
     Role.anonymous.add_permission!(:add_issues)
     assert_no_difference 'User.count' do
@@ -359,12 +368,19 @@ class MailHandlerTest < ActiveSupport::TestCase
     end
   end
 
-  def test_should_ignore_oof_emails
-    raw = IO.read(File.join(FIXTURES_PATH, 'ticket_on_given_project.eml'))
-    raw = "X-Auto-Response-Suppress: OOF\n" + raw
+  def test_should_ignore_auto_replied_emails
+    MailHandler.any_instance.expects(:dispatch).never
+    [
+      "X-Auto-Response-Suppress: OOF",
+      "Auto-Submitted: auto-replied",
+      "Auto-Submitted: Auto-Replied"
+    ].each do |header|
+      raw = IO.read(File.join(FIXTURES_PATH, 'ticket_on_given_project.eml'))
+      raw = header + "\n" + raw
 
-    assert_no_difference 'Issue.count' do
-      assert_equal false, MailHandler.receive(raw)
+      assert_no_difference 'Issue.count' do
+        assert_equal false, MailHandler.receive(raw), "email with #{header} header was not ignored"
+      end
     end
   end
 

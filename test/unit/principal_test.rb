@@ -33,27 +33,35 @@ class PrincipalTest < ActiveSupport::TestCase
     assert_equal projects.map(&:principals).flatten.sort, Principal.member_of(projects).sort
   end
 
+  def test_member_of_scope_should_be_empty_for_no_projects
+    assert_equal [], Principal.member_of([]).sort
+  end
+
   def test_not_member_of_scope_should_return_users_that_have_no_memberships
     projects = Project.find_all_by_id(1, 2)
     expected = (Principal.all - projects.map(&:memberships).flatten.map(&:principal)).sort
     assert_equal expected, Principal.not_member_of(projects).sort
   end
 
+  def test_not_member_of_scope_should_be_empty_for_no_projects
+    assert_equal [], Principal.not_member_of([]).sort
+  end
+
   context "#like" do
     setup do
-      Principal.generate!(:login => 'login')
-      Principal.generate!(:login => 'login2')
+      Principal.create!(:login => 'login')
+      Principal.create!(:login => 'login2')
 
-      Principal.generate!(:firstname => 'firstname')
-      Principal.generate!(:firstname => 'firstname2')
+      Principal.create!(:firstname => 'firstname')
+      Principal.create!(:firstname => 'firstname2')
 
-      Principal.generate!(:lastname => 'lastname')
-      Principal.generate!(:lastname => 'lastname2')
+      Principal.create!(:lastname => 'lastname')
+      Principal.create!(:lastname => 'lastname2')
 
-      Principal.generate!(:mail => 'mail@example.com')
-      Principal.generate!(:mail => 'mail2@example.com')
+      Principal.create!(:mail => 'mail@example.com')
+      Principal.create!(:mail => 'mail2@example.com')
 
-      @palmer = Principal.generate!(:firstname => 'David', :lastname => 'Palmer')
+      @palmer = Principal.create!(:firstname => 'David', :lastname => 'Palmer')
     end
 
     should "search login" do

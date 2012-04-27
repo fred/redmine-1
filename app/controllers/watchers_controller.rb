@@ -70,9 +70,7 @@ class WatchersController < ApplicationController
         format.js do
           render :update do |page|
             users.each do |user|
-              page.select("#issue_watcher_user_ids_#{user.id}").each do |item|
-                page.remove item
-              end
+              page << %|$$("#issue_watcher_user_ids_#{user.id}").each(function(el){el.remove();});|
             end
             page.insert_html :bottom, 'watchers_inputs', :text => watchers_checkboxes(nil, users, true)
           end
@@ -109,7 +107,7 @@ private
       @watched = klass.find(params[:object_id])
       @project = @watched.project
     elsif params[:project_id]
-      @project = Project.visible.find(params[:project_id])
+      @project = Project.visible.find_by_param(params[:project_id])
     end
   rescue
     render_404
@@ -122,9 +120,7 @@ private
       format.js do
         render(:update) do |page|
           c = watcher_css(@watched)
-          page.select(".#{c}").each do |item|
-            page.replace_html item, watcher_link(@watched, user)
-          end
+          page << %|$$(".#{c}").each(function(el){el.innerHTML="#{escape_javascript watcher_link(@watched, user)}"});|
         end
       end
     end

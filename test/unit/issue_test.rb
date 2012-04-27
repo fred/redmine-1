@@ -373,13 +373,13 @@ class IssueTest < ActiveSupport::TestCase
     tracker = Tracker.find(1)
     user = User.find(2)
 
-    issue = Issue.generate!(:tracker => tracker, :status => status, :project_id => 1)
+    issue = Issue.generate!(:tracker => tracker, :status => status, :project_id => 1, :author_id => 1)
     assert_equal [1, 2], issue.new_statuses_allowed_to(user).map(&:id)
 
     issue = Issue.generate!(:tracker => tracker, :status => status, :project_id => 1, :author => user)
     assert_equal [1, 2, 3, 5], issue.new_statuses_allowed_to(user).map(&:id)
 
-    issue = Issue.generate!(:tracker => tracker, :status => status, :project_id => 1, :assigned_to => user)
+    issue = Issue.generate!(:tracker => tracker, :status => status, :project_id => 1, :author_id => 1, :assigned_to => user)
     assert_equal [1, 2, 4, 5], issue.new_statuses_allowed_to(user).map(&:id)
 
     issue = Issue.generate!(:tracker => tracker, :status => status, :project_id => 1, :author => user, :assigned_to => user)
@@ -393,6 +393,14 @@ class IssueTest < ActiveSupport::TestCase
     expected_statuses = [issue.status] + Workflow.find_all_by_old_status_id(issue.status_id).map(&:new_status).uniq.sort
 
     assert_equal expected_statuses, issue.new_statuses_allowed_to(admin)
+  end
+
+  def test_new_statuses_allowed_to_should_return_default_and_current_status_when_copying
+    issue = Issue.find(1).copy
+    assert_equal [1], issue.new_statuses_allowed_to(User.find(2)).map(&:id)
+
+    issue = Issue.find(2).copy
+    assert_equal [1, 2], issue.new_statuses_allowed_to(User.find(2)).map(&:id)
   end
 
   def test_copy
@@ -717,7 +725,7 @@ class IssueTest < ActiveSupport::TestCase
   end
 
   def test_recipients_should_include_the_assigned_group_members
-    group_member = User.generate_with_protected!
+    group_member = User.generate!
     group = Group.generate!
     group.users << group_member
 
@@ -1025,11 +1033,12 @@ class IssueTest < ActiveSupport::TestCase
     assert IssueRelation.create!(:issue_from => Issue.find(2),
                                  :issue_to   => Issue.find(3),
                                  :relation_type => IssueRelation::TYPE_PRECEDES)
-    # Validation skipping
-    assert IssueRelation.new(:issue_from => Issue.find(3),
-                             :issue_to   => Issue.find(1),
-                             :relation_type => IssueRelation::TYPE_PRECEDES).save(false)
 
+    r = IssueRelation.create!(:issue_from => Issue.find(3),
+                             :issue_to   => Issue.find(7),
+                             :relation_type => IssueRelation::TYPE_PRECEDES)
+    IssueRelation.update_all("issue_to_id = 1", ["id = ?", r.id])
+    
     assert_equal [2, 3], Issue.find(1).all_dependent_issues.collect(&:id).sort
   end
 
@@ -1044,13 +1053,16 @@ class IssueTest < ActiveSupport::TestCase
     assert IssueRelation.create!(:issue_from => Issue.find(3),
                                  :issue_to   => Issue.find(8),
                                  :relation_type => IssueRelation::TYPE_RELATES)
-    # Validation skipping
-    assert IssueRelation.new(:issue_from => Issue.find(8),
-                             :issue_to   => Issue.find(2),
-                             :relation_type => IssueRelation::TYPE_RELATES).save(false)
-    assert IssueRelation.new(:issue_from => Issue.find(3),
-                             :issue_to   => Issue.find(1),
-                             :relation_type => IssueRelation::TYPE_RELATES).save(false)
+
+    r = IssueRelation.create!(:issue_from => Issue.find(8),
+                             :issue_to   => Issue.find(7),
+                             :relation_type => IssueRelation::TYPE_RELATES)
+    IssueRelation.update_all("issue_to_id = 2", ["id = ?", r.id])
+    
+    r = IssueRelation.create!(:issue_from => Issue.find(3),
+                             :issue_to   => Issue.find(7),
+                             :relation_type => IssueRelation::TYPE_RELATES)
+    IssueRelation.update_all("issue_to_id = 1", ["id = ?", r.id])
 
     assert_equal [2, 3, 8], Issue.find(1).all_dependent_issues.collect(&:id).sort
   end
@@ -1204,8 +1216,8 @@ class IssueTest < ActiveSupport::TestCase
   context "Issue#recipients" do
     setup do
       @project = Project.find(1)
-      @author = User.generate_with_protected!
-      @assignee = User.generate_with_protected!
+      @author = User.generate!
+      @assignee = User.generate!
       @issue = Issue.generate_for_project!(@project, :assigned_to => @assignee, :author => @author)
     end
 

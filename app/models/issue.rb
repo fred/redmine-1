@@ -60,18 +60,19 @@ class Issue < ActiveRecord::Base
   validates_numericality_of :estimated_hours, :allow_nil => true
   validate :validate_issue
 
-  named_scope :visible, lambda {|*args| { :include => :project,
-                                          :conditions => Issue.visible_condition(args.shift || User.current, *args) } }
+  scope :visible,
+        lambda {|*args| { :include => :project,
+                          :conditions => Issue.visible_condition(args.shift || User.current, *args) } }
 
-  named_scope :open, lambda {|*args|
+  scope :open, lambda {|*args|
     is_closed = args.size > 0 ? !args.first : false
     {:conditions => ["#{IssueStatus.table_name}.is_closed = ?", is_closed], :include => :status}
   }
 
-  named_scope :recently_updated, :order => "#{Issue.table_name}.updated_on DESC"
-  named_scope :with_limit, lambda { |limit| { :limit => limit} }
-  named_scope :on_active_project, :include => [:status, :project, :tracker],
-                                  :conditions => ["#{Project.table_name}.status=#{Project::STATUS_ACTIVE}"]
+  scope :recently_updated, :order => "#{Issue.table_name}.updated_on DESC"
+  scope :with_limit, lambda { |limit| { :limit => limit} }
+  scope :on_active_project, :include => [:status, :project, :tracker],
+                            :conditions => ["#{Project.table_name}.status=#{Project::STATUS_ACTIVE}"]
 
   before_create :default_assign
   before_save :close_duplicates, :update_done_ratio_from_issue_status
@@ -145,8 +146,8 @@ class Issue < ActiveRecord::Base
   end
 
   # Returns an unsaved copy of the issue
-  def copy(attributes=nil)
-    copy = self.class.new.copy_from(self)
+  def copy(attributes=nil, copy_options={})
+    copy = self.class.new.copy_from(self, copy_options)
     copy.attributes = attributes if attributes
     copy
   end
@@ -246,8 +247,8 @@ class Issue < ActiveRecord::Base
     write_attribute(:description, arg)
   end
 
-  # Overrides attributes= so that project and tracker get assigned first
-  def attributes_with_project_and_tracker_first=(new_attributes, *args)
+  # Overrides assign_attributes so that project and tracker get assigned first
+  def assign_attributes_with_project_and_tracker_first(new_attributes, *args)
     return if new_attributes.nil?
     attrs = new_attributes.dup
     attrs.stringify_keys!
@@ -257,10 +258,10 @@ class Issue < ActiveRecord::Base
         send "#{attr}=", attrs.delete(attr)
       end
     end
-    send :attributes_without_project_and_tracker_first=, attrs, *args
+    send :assign_attributes_without_project_and_tracker_first, attrs, *args
   end
   # Do not redefine alias chain on reload (see #4838)
-  alias_method_chain(:attributes=, :project_and_tracker_first) unless method_defined?(:attributes_without_project_and_tracker_first=)
+  alias_method_chain(:assign_attributes, :project_and_tracker_first) unless method_defined?(:assign_attributes_without_project_and_tracker_first)
 
   def estimated_hours=(h)
     write_attribute :estimated_hours, (h.is_a?(String) ? h.to_hours : h)
@@ -350,7 +351,7 @@ class Issue < ActiveRecord::Base
     end
 
     # mass-assignment security bypass
-    self.send :attributes=, attrs, false
+    assign_attributes attrs, :without_protection => true
   end
 
   def done_ratio
@@ -511,24 +512,28 @@ class Issue < ActiveRecord::Base
 
   # Returns an array of statuses that user is able to apply
   def new_statuses_allowed_to(user=User.current, include_default=false)
-    initial_status = nil
-    if new_record?
-      initial_status = IssueStatus.default
-    elsif status_id_was
-      initial_status = IssueStatus.find_by_id(status_id_was)
+    if new_record? && @copied_from
+      [IssueStatus.default, @copied_from.status].compact.uniq.sort
+    else
+      initial_status = nil
+      if new_record?
+        initial_status = IssueStatus.default
+      elsif status_id_was
+        initial_status = IssueStatus.find_by_id(status_id_was)
+      end
+      initial_status ||= status
+  
+      statuses = initial_status.find_new_statuses_allowed_to(
+        user.admin ? Role.all : user.roles_for_project(project),
+        tracker,
+        author == user,
+        assigned_to_id_changed? ? assigned_to_id_was == user.id : assigned_to_id == user.id
+        )
+      statuses << initial_status unless statuses.empty?
+      statuses << IssueStatus.default if include_default
+      statuses = statuses.compact.uniq.sort
+      blocked? ? statuses.reject {|s| s.is_closed?} : statuses
     end
-    initial_status ||= status
-
-    statuses = initial_status.find_new_statuses_allowed_to(
-      user.admin ? Role.all : user.roles_for_project(project),
-      tracker,
-      author == user,
-      assigned_to_id_changed? ? assigned_to_id_was == user.id : assigned_to_id == user.id
-      )
-    statuses << initial_status unless statuses.empty?
-    statuses << IssueStatus.default if include_default
-    statuses = statuses.compact.uniq.sort
-    blocked? ? statuses.reject {|s| s.is_closed?} : statuses
   end
 
   def assigned_to_was
@@ -917,7 +922,7 @@ class Issue < ActiveRecord::Base
       p.estimated_hours = nil if p.estimated_hours == 0.0
 
       # ancestors will be recursively updated
-      p.save(false)
+      p.save(:validate => false)
     end
   end
 

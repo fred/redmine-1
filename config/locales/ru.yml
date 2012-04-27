@@ -1140,3 +1140,7 @@ ru:
   permission_manage_related_issues: Manage related issues
   field_ldap_filter: LDAP filter
   label_search_for_watchers: Search for watchers to add
+  notice_account_deleted: "Ваша учетная запись полностью удалена" 
+  setting_unsubscribe: "Разрешить пользователям удалять свои учетные записи" 
+  button_delete_my_account: "Удалить мою учетную запись" 
+  text_account_destroy_confirmation: "Ваша учетная запись будет полностью удалена без возможности восстановления.\nВы уверены, что хотите продолжить?" 

@@ -520,4 +520,19 @@ function hideOnLoad() {
   });
 }
 
+function addFormObserversForDoubleSubmit() {
+  $$('form[method=post]').each(function(form) {
+    if (!form.hasClassName('multiple-submit')) {
+      form.on('submit', function(form_submission) { 
+        if (form.getStorage().get('submitted')) {
+          form_submission.stop();
+        } else {
+          form.getStorage().set('submitted', true);
+        }
+      });
+    }
+  });
+}
+
 Event.observe(window, 'load', hideOnLoad);
+Event.observe(window, 'load', addFormObserversForDoubleSubmit);

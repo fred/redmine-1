@@ -53,9 +53,9 @@ class User < Principal
   belongs_to :auth_source
 
   # Active non-anonymous users scope
-  named_scope :active, :conditions => "#{User.table_name}.status = #{STATUS_ACTIVE}"
-  named_scope :logged, :conditions => "#{User.table_name}.status <> #{STATUS_ANONYMOUS}"
-  named_scope :status, lambda {|arg| arg.blank? ? {} : {:conditions => {:status => arg.to_i}} }
+  scope :active, :conditions => "#{User.table_name}.status = #{STATUS_ACTIVE}"
+  scope :logged, :conditions => "#{User.table_name}.status <> #{STATUS_ANONYMOUS}"
+  scope :status, lambda {|arg| arg.blank? ? {} : {:conditions => {:status => arg.to_i}} }
 
   acts_as_customizable
 
@@ -68,7 +68,7 @@ class User < Principal
   MAIL_LENGTH_LIMIT = 60
 
   validates_presence_of :login, :firstname, :lastname, :mail, :if => Proc.new { |user| !user.is_a?(AnonymousUser) }
-  validates_uniqueness_of :login, :if => Proc.new { |user| !user.login.blank? }, :case_sensitive => false
+  validates_uniqueness_of :login, :if => Proc.new { |user| user.login_changed? && user.login.present? }, :case_sensitive => false
   validates_uniqueness_of :mail, :if => Proc.new { |user| !user.mail.blank? }, :case_sensitive => false
   # Login must contain lettres, numbers, underscores only
   validates_format_of :login, :with => /^[a-z0-9_\-@\.]*$/i
@@ -84,11 +84,11 @@ class User < Principal
   before_save   :update_hashed_password
   before_destroy :remove_references_before_destroy
 
-  named_scope :in_group, lambda {|group|
+  scope :in_group, lambda {|group|
     group_id = group.is_a?(Group) ? group.id : group.to_i
     { :conditions => ["#{User.table_name}.id IN (SELECT gu.user_id FROM #{table_name_prefix}groups_users#{table_name_suffix} gu WHERE gu.group_id = ?)", group_id] }
   }
-  named_scope :not_in_group, lambda {|group|
+  scope :not_in_group, lambda {|group|
     group_id = group.is_a?(Group) ? group.id : group.to_i
     { :conditions => ["#{User.table_name}.id NOT IN (SELECT gu.user_id FROM #{table_name_prefix}groups_users#{table_name_suffix} gu WHERE gu.group_id = ?)", group_id] }
   }
@@ -284,14 +284,18 @@ class User < Principal
 
   # Return user's RSS key (a 40 chars long string), used to access feeds
   def rss_key
-    token = self.rss_token || Token.create(:user => self, :action => 'feeds')
-    token.value
+    if rss_token.nil?
+      create_rss_token(:action => 'feeds')
+    end
+    rss_token.value
   end
 
   # Return user's API key (a 40 chars long string), used to access the API
   def api_key
-    token = self.api_token || self.create_api_token(:action => 'api')
-    token.value
+    if api_token.nil?
+      create_api_token(:action => 'api')
+    end
+    api_token.value
   end
 
   # Return an array of project ids for which the user has explicitly turned mail notifications on
@@ -346,6 +350,11 @@ class User < Principal
   # Makes find_by_mail case-insensitive
   def self.find_by_mail(mail)
     find(:first, :conditions => ["LOWER(mail) = ?", mail.to_s.downcase])
+  end
+
+  # Returns true if the default admin account can no longer be used
+  def self.default_admin_account_changed?
+    !User.active.find_by_login("admin").try(:check_password?, "admin")
   end
 
   def to_s
@@ -475,6 +484,12 @@ class User < Principal
   # See allowed_to? for the actions and valid options.
   def allowed_to_globally?(action, options, &block)
     allowed_to?(action, nil, options.reverse_merge(:global => true), &block)
+  end
+
+  # Returns true if the user is allowed to delete his own account
+  def own_account_deletable?
+    Setting.unsubscribe? &&
+      (!admin? || User.active.first(:conditions => ["admin = ? AND id <> ?", true, id]).present?)
   end
 
   safe_attributes 'login',

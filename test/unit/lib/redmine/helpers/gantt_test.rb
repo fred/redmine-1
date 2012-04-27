@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,6 +18,18 @@
 require File.expand_path('../../../../../test_helper', __FILE__)
 
 class Redmine::Helpers::GanttHelperTest < ActionView::TestCase
+  fixtures :projects, :trackers, :issue_statuses, :issues,
+           :journals, :journal_details,
+           :enumerations, :users, :issue_categories,
+           :projects_trackers,
+           :roles,
+           :member_roles,
+           :members,
+           :enabled_modules,
+           :workflows,
+           :versions,
+           :groups_users
+
   include ApplicationHelper
   include ProjectsHelper
   include IssuesHelper
@@ -33,7 +45,7 @@ class Redmine::Helpers::GanttHelperTest < ActionView::TestCase
     @project = project
     @gantt = Redmine::Helpers::Gantt.new(options)
     @gantt.project = @project
-    @gantt.query = Query.generate_default!(:project => @project)
+    @gantt.query = Query.create!(:project => @project, :name => 'Gantt')
     @gantt.view = self
     @gantt.instance_variable_set('@date_from', options[:date_from] || 2.weeks.ago.to_date)
     @gantt.instance_variable_set('@date_to', options[:date_to] || 2.weeks.from_now.to_date)
@@ -160,7 +172,6 @@ class Redmine::Helpers::GanttHelperTest < ActionView::TestCase
       context "assigned to a shared version of another project" do
         setup do
           p = Project.generate!
-          p.trackers << @tracker
           p.enabled_module_names = [:issue_tracking]
           @shared_version = Version.generate!(:sharing => 'system')
           p.versions << @shared_version

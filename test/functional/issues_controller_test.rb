@@ -305,11 +305,20 @@ class IssuesControllerTest < ActionController::TestCase
     assert_response :success
   end
 
+  def test_index_should_omit_page_param_in_export_links
+    get :index, :page => 2
+    assert_response :success
+    assert_select 'a.atom[href=/issues.atom]'
+    assert_select 'a.csv[href=/issues.csv]'
+    assert_select 'a.pdf[href=/issues.pdf]'
+    assert_select 'form#csv-export-form[action=/issues.csv]'
+  end
+
   def test_index_csv
     get :index, :format => 'csv'
     assert_response :success
     assert_not_nil assigns(:issues)
-    assert_equal 'text/csv', @response.content_type
+    assert_equal 'text/csv; header=present', @response.content_type
     assert @response.body.starts_with?("#,")
     lines = @response.body.chomp.split("\n")
     assert_equal assigns(:query).columns.size + 1, lines[0].split(',').size
@@ -319,14 +328,14 @@ class IssuesControllerTest < ActionController::TestCase
     get :index, :project_id => 1, :format => 'csv'
     assert_response :success
     assert_not_nil assigns(:issues)
-    assert_equal 'text/csv', @response.content_type
+    assert_equal 'text/csv; header=present', @response.content_type
   end
 
   def test_index_csv_with_description
     get :index, :format => 'csv', :description => '1'
     assert_response :success
     assert_not_nil assigns(:issues)
-    assert_equal 'text/csv', @response.content_type
+    assert_equal 'text/csv; header=present', @response.content_type
     assert @response.body.starts_with?("#,")
     lines = @response.body.chomp.split("\n")
     assert_equal assigns(:query).columns.size + 2, lines[0].split(',').size
@@ -338,7 +347,7 @@ class IssuesControllerTest < ActionController::TestCase
 
     get :index, :format => 'csv', :set_filter => '1', :c => %w(subject spent_hours)
     assert_response :success
-    assert_equal 'text/csv', @response.content_type
+    assert_equal 'text/csv; header=present', @response.content_type
     lines = @response.body.chomp.split("\n")
     assert_include "#{issue.id},#{issue.subject},7.33", lines
   end
@@ -347,7 +356,7 @@ class IssuesControllerTest < ActionController::TestCase
     get :index, :format => 'csv', :columns => 'all'
     assert_response :success
     assert_not_nil assigns(:issues)
-    assert_equal 'text/csv', @response.content_type
+    assert_equal 'text/csv; header=present', @response.content_type
     assert @response.body.starts_with?("#,")
     lines = @response.body.chomp.split("\n")
     assert_equal assigns(:query).available_columns.size + 1, lines[0].split(',').size
@@ -382,7 +391,7 @@ class IssuesControllerTest < ActionController::TestCase
                   :f => ['subject'], 
                   :op => '=', :values => [str_utf8],
                   :format => 'csv'
-      assert_equal 'text/csv', @response.content_type
+      assert_equal 'text/csv; header=present', @response.content_type
       lines = @response.body.chomp.split("\n")
       s1 = "\xaa\xac\xbaA"
       if str_utf8.respond_to?(:force_encoding)
@@ -410,7 +419,7 @@ class IssuesControllerTest < ActionController::TestCase
                   :c => ['status', 'subject'],
                   :format => 'csv',
                   :set_filter => 1
-      assert_equal 'text/csv', @response.content_type
+      assert_equal 'text/csv; header=present', @response.content_type
       lines = @response.body.chomp.split("\n")
       s1 = "\xaa\xac\xbaA" # status
       if str_utf8.respond_to?(:force_encoding)
@@ -445,7 +454,7 @@ class IssuesControllerTest < ActionController::TestCase
                   :c => ['estimated_hours', 'subject'],
                   :format => 'csv',
                   :set_filter => 1
-      assert_equal 'text/csv', @response.content_type
+      assert_equal 'text/csv; header=present', @response.content_type
       lines = @response.body.chomp.split("\n")
       assert_equal "#{issue.id},1234.50,#{str1}", lines[1]
 
@@ -474,7 +483,7 @@ class IssuesControllerTest < ActionController::TestCase
                   :c => ['estimated_hours', 'subject'],
                   :format => 'csv',
                   :set_filter => 1
-      assert_equal 'text/csv', @response.content_type
+      assert_equal 'text/csv; header=present', @response.content_type
       lines = @response.body.chomp.split("\n")
       assert_equal "#{issue.id};1234,50;#{str1}", lines[1]
 
@@ -1160,6 +1169,42 @@ class IssuesControllerTest < ActionController::TestCase
     assert_not_nil assigns(:issue)
   end
 
+  def test_show_export_to_pdf_with_ancestors
+    issue = Issue.generate!(:project_id => 1, :author_id => 2, :tracker_id => 1, :subject => 'child', :parent_issue_id => 1)
+
+    get :show, :id => issue.id, :format => 'pdf'
+    assert_response :success
+    assert_equal 'application/pdf', @response.content_type
+    assert @response.body.starts_with?('%PDF')
+  end
+
+  def test_show_export_to_pdf_with_descendants
+    c1 = Issue.generate!(:project_id => 1, :author_id => 2, :tracker_id => 1, :subject => 'child', :parent_issue_id => 1)
+    c2 = Issue.generate!(:project_id => 1, :author_id => 2, :tracker_id => 1, :subject => 'child', :parent_issue_id => 1)
+    c3 = Issue.generate!(:project_id => 1, :author_id => 2, :tracker_id => 1, :subject => 'child', :parent_issue_id => c1.id)
+
+    get :show, :id => 1, :format => 'pdf'
+    assert_response :success
+    assert_equal 'application/pdf', @response.content_type
+    assert @response.body.starts_with?('%PDF')
+  end
+
+  def test_show_export_to_pdf_with_journals
+    get :show, :id => 1, :format => 'pdf'
+    assert_response :success
+    assert_equal 'application/pdf', @response.content_type
+    assert @response.body.starts_with?('%PDF')
+  end
+
+  def test_show_export_to_pdf_with_changesets
+    Issue.find(3).changesets = Changeset.find_all_by_id(100, 101, 102)
+
+    get :show, :id => 3, :format => 'pdf'
+    assert_response :success
+    assert_equal 'application/pdf', @response.content_type
+    assert @response.body.starts_with?('%PDF')
+  end
+
   def test_get_new
     @request.session[:user_id] = 2
     get :new, :project_id => 1, :tracker_id => 1
@@ -1312,7 +1357,7 @@ class IssuesControllerTest < ActionController::TestCase
       :attributes => {:name => 'issue[tracker_id]'},
       :child => {:tag => 'option', :attributes => {:value => '3', :selected => 'selected'}}
     assert_tag 'textarea',
-      :attributes => {:name => 'issue[description]'}, :content => 'Prefilled'
+      :attributes => {:name => 'issue[description]'}, :content => "\nPrefilled"
     assert_tag 'input',
       :attributes => {:name => 'issue[custom_field_values][2]', :value => 'Custom field value'}
   end
@@ -1682,7 +1727,7 @@ class IssuesControllerTest < ActionController::TestCase
     assert_template 'new'
 
     assert_tag :textarea, :attributes => { :name => 'issue[description]' },
-                          :content => 'This is a description'
+                          :content => "\nThis is a description"
     assert_tag :select, :attributes => { :name => 'issue[priority_id]' },
                         :child => { :tag => 'option', :attributes => { :selected => 'selected',
                                                                        :value => '6' },
@@ -2576,7 +2621,7 @@ class IssuesControllerTest < ActionController::TestCase
     assert_template 'edit'
 
     assert_error_tag :descendant => {:content => /Activity can't be blank/}
-    assert_tag :textarea, :attributes => { :name => 'notes' }, :content => notes
+    assert_tag :textarea, :attributes => { :name => 'notes' }, :content => "\n"+notes
     assert_tag :input, :attributes => { :name => 'time_entry[hours]', :value => "2z" }
   end
 
@@ -2595,7 +2640,7 @@ class IssuesControllerTest < ActionController::TestCase
 
     assert_error_tag :descendant => {:content => /Activity can't be blank/}
     assert_error_tag :descendant => {:content => /Hours can't be blank/}
-    assert_tag :textarea, :attributes => { :name => 'notes' }, :content => notes
+    assert_tag :textarea, :attributes => { :name => 'notes' }, :content => "\n"+notes
     assert_tag :input, :attributes => { :name => 'time_entry[comments]', :value => "this is my comment" }
   end
 
@@ -3048,6 +3093,19 @@ class IssuesControllerTest < ActionController::TestCase
     assert_equal 'Failed to save 1 issue(s) on 2 selected: #2.', flash[:error]
   end
 
+  def test_get_bulk_copy
+    @request.session[:user_id] = 2
+    get :bulk_edit, :ids => [1, 2, 3], :copy => '1'
+    assert_response :success
+    assert_template 'bulk_edit'
+
+    issues = assigns(:issues)
+    assert_not_nil issues
+    assert_equal [1, 2, 3], issues.map(&:id).sort
+
+    assert_select 'input[name=copy_attachments]'
+  end
+
   def test_bulk_copy_to_another_project
     @request.session[:user_id] = 2
     assert_difference 'Issue.count', 2 do
@@ -3056,27 +3114,41 @@ class IssuesControllerTest < ActionController::TestCase
       end
     end
     assert_redirected_to '/projects/ecookbook/issues'
+
+    copies = Issue.all(:order => 'id DESC', :limit => issues.size)
+    copies.each do |copy|
+      assert_equal 2, copy.project_id
+    end
   end
 
   def test_bulk_copy_should_allow_not_changing_the_issue_attributes
     @request.session[:user_id] = 2
-    issue_before_move = Issue.find(1)
-    assert_difference 'Issue.count', 1 do
-      assert_no_difference 'Project.find(1).issues.count' do
-        post :bulk_update, :ids => [1], :copy => '1', 
-             :issue => {
-               :project_id => '2', :tracker_id => '', :assigned_to_id => '',
-               :status_id => '', :start_date => '', :due_date => ''
-             }
-      end
+    issues = [
+      Issue.create!(:project_id => 1, :tracker_id => 1, :status_id => 1, :priority_id => 2, :subject => 'issue 1', :author_id => 1, :assigned_to_id => nil),
+      Issue.create!(:project_id => 2, :tracker_id => 3, :status_id => 2, :priority_id => 1, :subject => 'issue 2', :author_id => 2, :assigned_to_id => 3)
+    ]
+
+    assert_difference 'Issue.count', issues.size do
+      post :bulk_update, :ids => issues.map(&:id), :copy => '1', 
+           :issue => {
+             :project_id => '', :tracker_id => '', :assigned_to_id => '',
+             :status_id => '', :start_date => '', :due_date => ''
+           }
     end
-    issue_after_move = Issue.first(:order => 'id desc', :conditions => {:project_id => 2})
-    assert_equal issue_before_move.tracker_id, issue_after_move.tracker_id
-    assert_equal issue_before_move.status_id, issue_after_move.status_id
-    assert_equal issue_before_move.assigned_to_id, issue_after_move.assigned_to_id
+
+    copies = Issue.all(:order => 'id DESC', :limit => issues.size)
+    issues.each do |orig|
+      copy = copies.detect {|c| c.subject == orig.subject}
+      assert_not_nil copy
+      assert_equal orig.project_id, copy.project_id
+      assert_equal orig.tracker_id, copy.tracker_id
+      assert_equal orig.status_id, copy.status_id
+      assert_equal orig.assigned_to_id, copy.assigned_to_id
+      assert_equal orig.priority_id, copy.priority_id
+    end
   end
 
- def test_bulk_copy_should_allow_changing_the_issue_attributes
+  def test_bulk_copy_should_allow_changing_the_issue_attributes
     # Fixes random test failure with Mysql
     # where Issue.all(:limit => 2, :order => 'id desc', :conditions => {:project_id => 2})
     # doesn't return the expected results
@@ -3088,7 +3160,7 @@ class IssuesControllerTest < ActionController::TestCase
         post :bulk_update, :ids => [1, 2], :copy => '1', 
              :issue => {
                :project_id => '2', :tracker_id => '', :assigned_to_id => '4',
-               :status_id => '3', :start_date => '2009-12-01', :due_date => '2009-12-31'
+               :status_id => '1', :start_date => '2009-12-01', :due_date => '2009-12-31'
              }
       end
     end
@@ -3098,7 +3170,7 @@ class IssuesControllerTest < ActionController::TestCase
     copied_issues.each do |issue|
       assert_equal 2, issue.project_id, "Project is incorrect"
       assert_equal 4, issue.assigned_to_id, "Assigned to is incorrect"
-      assert_equal 3, issue.status_id, "Status is incorrect"
+      assert_equal 1, issue.status_id, "Status is incorrect"
       assert_equal '2009-12-01', issue.start_date.to_s, "Start date is incorrect"
       assert_equal '2009-12-31', issue.due_date.to_s, "Due date is incorrect"
     end
@@ -3120,6 +3192,36 @@ class IssuesControllerTest < ActionController::TestCase
     journal = issue.journals.first
     assert_equal 0, journal.details.size
     assert_equal 'Copying one issue', journal.notes
+  end
+
+  def test_bulk_copy_should_allow_not_copying_the_attachments
+    attachment_count = Issue.find(3).attachments.size
+    assert attachment_count > 0
+    @request.session[:user_id] = 2
+
+    assert_difference 'Issue.count', 1 do
+      assert_no_difference 'Attachment.count' do
+        post :bulk_update, :ids => [3], :copy => '1',
+             :issue => {
+               :project_id => ''
+             }
+      end
+    end
+  end
+
+  def test_bulk_copy_should_allow_copying_the_attachments
+    attachment_count = Issue.find(3).attachments.size
+    assert attachment_count > 0
+    @request.session[:user_id] = 2
+
+    assert_difference 'Issue.count', 1 do
+      assert_difference 'Attachment.count', attachment_count do
+        post :bulk_update, :ids => [3], :copy => '1', :copy_attachments => '1',
+             :issue => {
+               :project_id => ''
+             }
+      end
+    end
   end
 
   def test_bulk_copy_to_another_project_should_follow_when_needed

@@ -22,9 +22,12 @@ class Unauthorized < Exception; end
 
 class ApplicationController < ActionController::Base
   include Redmine::I18n
+  
+  class_attribute :accept_api_auth_actions
+  class_attribute :accept_rss_auth_actions
+  class_attribute :model_object
 
   layout 'base'
-  exempt_from_layout 'builder', 'rsb'
 
   protect_from_forgery
   def handle_unverified_request
@@ -43,32 +46,7 @@ class ApplicationController < ActionController::Base
     end
   end
 
-  # FIXME: Remove this when all of Rack and Rails have learned how to
-  # properly use encodings
-  before_filter :params_filter
-
-  def params_filter
-    if RUBY_VERSION >= '1.9' && defined?(Rails) && Rails::VERSION::MAJOR < 3
-      self.utf8nize!(params)
-    end
-  end
-
-  def utf8nize!(obj)
-    if obj.frozen?
-      obj
-    elsif obj.is_a? String
-      obj.respond_to?(:force_encoding) ? obj.force_encoding("UTF-8") : obj
-    elsif obj.is_a? Hash
-      obj.each {|k, v| obj[k] = self.utf8nize!(v)}
-    elsif obj.is_a? Array
-      obj.each {|v| self.utf8nize!(v)}
-    else
-      obj
-    end
-  end
-
   before_filter :user_setup, :check_if_login_required, :set_localization
-  filter_parameter_logging :password
 
   rescue_from ActionController::InvalidAuthenticityToken, :with => :invalid_authenticity_token
   rescue_from ::Unauthorized, :with => :deny_access
@@ -76,10 +54,6 @@ class ApplicationController < ActionController::Base
   include Redmine::Search::Controller
   include Redmine::MenuManager::MenuController
   helper Redmine::MenuManager::MenuHelper
-
-  Redmine::Scm::Base.all.each do |scm|
-    require_dependency "repository/#{scm.underscore}"
-  end
 
   def user_setup
     # Check the settings cache for each request
@@ -123,6 +97,15 @@ class ApplicationController < ActionController::Base
       session[:user_id] = user.id
     else
       User.current = User.anonymous
+    end
+  end
+
+  # Logs out current user
+  def logout_user
+    if User.current.logged?
+      cookies.delete :autologin
+      Token.delete_all(["user_id = ? AND action = ?", User.current.id, 'autologin'])
+      self.logged_user = nil
     end
   end
 
@@ -233,7 +216,7 @@ class ApplicationController < ActionController::Base
   end
 
   def find_model_object
-    model = self.class.read_inheritable_attribute('model_object')
+    model = self.class.model_object
     if model
       @object = model.find(params[:id])
       self.instance_variable_set('@' + controller_name.singularize, @object) if @object
@@ -243,7 +226,7 @@ class ApplicationController < ActionController::Base
   end
 
   def self.model_object(model)
-    write_inheritable_attribute('model_object', model)
+    self.model_object = model
   end
 
   # Filter for bulk issue operations
@@ -377,23 +360,11 @@ class ApplicationController < ActionController::Base
            :content_type => 'application/atom+xml'
   end
 
-  # TODO: remove in Redmine 1.4
-  def self.accept_key_auth(*actions)
-    ActiveSupport::Deprecation.warn "ApplicationController.accept_key_auth is deprecated and will be removed in Redmine 1.4. Use accept_rss_auth (or accept_api_auth) instead."
-    accept_rss_auth(*actions)
-  end
-
-  # TODO: remove in Redmine 1.4
-  def accept_key_auth_actions
-    ActiveSupport::Deprecation.warn "ApplicationController.accept_key_auth_actions is deprecated and will be removed in Redmine 1.4. Use accept_rss_auth (or accept_api_auth) instead."
-    self.class.accept_rss_auth
-  end
-
   def self.accept_rss_auth(*actions)
     if actions.any?
-      write_inheritable_attribute('accept_rss_auth_actions', actions)
+      self.accept_rss_auth_actions = actions
     else
-      read_inheritable_attribute('accept_rss_auth_actions') || []
+      self.accept_rss_auth_actions || []
     end
   end
 
@@ -403,9 +374,9 @@ class ApplicationController < ActionController::Base
 
   def self.accept_api_auth(*actions)
     if actions.any?
-      write_inheritable_attribute('accept_api_auth_actions', actions)
+      self.accept_api_auth_actions = actions
     else
-      read_inheritable_attribute('accept_api_auth_actions') || []
+      self.accept_api_auth_actions || []
     end
   end
 
@@ -526,26 +497,12 @@ class ApplicationController < ActionController::Base
     else
       @error_messages = objects.errors.full_messages
     end
-    render :template => 'common/error_messages.api', :status => :unprocessable_entity, :layout => false
+    render :template => 'common/error_messages.api', :status => :unprocessable_entity, :layout => nil
   end
 
-  # Overrides #default_template so that the api template
-  # is used automatically if it exists
-  def default_template(action_name = self.action_name)
-    if api_request?
-      begin
-        return self.view_paths.find_template(default_template_name(action_name), 'api')
-      rescue ::ActionView::MissingTemplate
-        # the api template was not found
-        # fallback to the default behaviour
-      end
-    end
-    super
-  end
-
-  # Overrides #pick_layout so that #render with no arguments
+  # Overrides #_include_layout? so that #render with no arguments
   # doesn't use the layout for api requests
-  def pick_layout(*args)
-    api_request? ? nil : super
+  def _include_layout?(*args)
+    api_request? ? false : super
   end
 end
