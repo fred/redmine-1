@@ -20,7 +20,7 @@
 # Settings can be defined through the application in Admin -> Settings
 
 app_title:
-  default: Redmine
+  default: WorldMathaba
 app_subtitle:
   default: Project management
 welcome_text:
@@ -48,7 +48,7 @@ activity_days_default:
 per_page_options:
   default: '25,50,100'
 mail_from:
-  default: redmine@example.net
+  default: redmine@WorldMathaba.net
 bcc_recipients:
   default: 1
 plain_text_mail:
@@ -62,7 +62,7 @@ wiki_compression:
 default_language:
   default: en
 host_name:
-  default: localhost:3000
+  default: wmbugs.herokuapp.com
 protocol:
   default: http
 feeds_limit:
@@ -189,7 +189,7 @@ ui_theme:
 emails_footer:
   default: |-
     You have received this notification because you have either subscribed to it, or are involved in it.
-    To change your notification preferences, please click here: http://hostname/my/account
+    To change your notification preferences, please click here: http://wmbugs.herokuapp.com
 gravatar_enabled:  
   default: 0
 openid:
