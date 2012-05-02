@@ -56,13 +56,10 @@
     <% end %>
 </div>
 
-<% content_for :sidebar do %>
-  <%= call_hook :view_layouts_base_sidebar %>
-<% end %>
-
-<%= tag('div', {:id => 'main', :class => (has_content?(:sidebar) ? '' : 'nosidebar')}, true) %>
+<%= tag('div', {:id => 'main', :class => (sidebar_content? ? '' : 'nosidebar')}, true) %>
     <div id="sidebar">
         <%= yield :sidebar %>
+        <%= view_layouts_base_sidebar_hook_response %>
     </div>
 
     <div id="content">

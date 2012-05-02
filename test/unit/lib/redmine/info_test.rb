@@ -15,21 +15,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+require File.expand_path('../../../../test_helper', __FILE__)
 
-namespace :db do
-  desc 'Encrypts SCM and LDAP passwords in the database.'
-  task :encrypt => :environment do
-    unless (Repository.encrypt_all(:password) &&
-      AuthSource.encrypt_all(:account_password))
-      raise "Some objects could not be saved after encryption, update was rollback'ed."
-    end
-  end
+class Redmine::InfoTest < ActiveSupport::TestCase
+  def test_environment
+    env = Redmine::Info.environment
 
-  desc 'Decrypts SCM and LDAP passwords in the database.'
-  task :decrypt => :environment do
-    unless (Repository.decrypt_all(:password) &&
-      AuthSource.decrypt_all(:account_password))
-      raise "Some objects could not be saved after decryption, update was rollback'ed."
-    end
+    assert_kind_of String, env
+    assert_match 'Redmine version', env
   end
 end

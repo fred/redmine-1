@@ -220,7 +220,7 @@ module ApplicationHelper
   def render_flash_messages
     s = ''
     flash.each do |k,v|
-      s << (content_tag('div', v.html_safe, :class => "flash #{k}"))
+      s << content_tag('div', v.html_safe, :class => "flash #{k}", :id => "flash_#{k}")
     end
     s.html_safe
   end
@@ -369,7 +369,8 @@ module ApplicationHelper
   end
 
   def to_path_param(path)
-    path.to_s.split(%r{[/\\]}).select {|p| !p.blank?}
+    str = path.to_s.split(%r{[/\\]}).select{|p| !p.blank?}.join("/")
+    str.blank? ? nil : str
   end
 
   def pagination_links_full(paginator, count=nil, options={})
@@ -947,8 +948,8 @@ module ApplicationHelper
   def labelled_remote_form_for(*args, &proc)
     args << {} unless args.last.is_a?(Hash)
     options = args.last
-    options.merge!({:builder => Redmine::Views::LabelledFormBuilder})
-    remote_form_for(*args, &proc)
+    options.merge!({:builder => Redmine::Views::LabelledFormBuilder, :remote => true})
+    form_for(*args, &proc)
   end
 
   def error_messages_for(*objects)
@@ -1045,6 +1046,59 @@ module ApplicationHelper
     end
   end
 
+  # Overrides Rails' stylesheet_link_tag with themes and plugins support.
+  # Examples:
+  #   stylesheet_link_tag('styles') # => picks styles.css from the current theme or defaults
+  #   stylesheet_link_tag('styles', :plugin => 'foo) # => picks styles.css from plugin's assets
+  #
+  def stylesheet_link_tag(*sources)
+    options = sources.last.is_a?(Hash) ? sources.pop : {}
+    plugin = options.delete(:plugin)
+    sources = sources.map do |source|
+      if plugin
+        "/plugin_assets/#{plugin}/stylesheets/#{source}"
+      elsif current_theme && current_theme.stylesheets.include?(source)
+        current_theme.stylesheet_path(source)
+      else
+        source
+      end
+    end
+    super sources, options
+  end
+
+  # Overrides Rails' image_tag with themes and plugins support.
+  # Examples:
+  #   image_tag('image.png') # => picks image.png from the current theme or defaults
+  #   image_tag('image.png', :plugin => 'foo) # => picks image.png from plugin's assets
+  #
+  def image_tag(source, options={})
+    if plugin = options.delete(:plugin)
+      source = "/plugin_assets/#{plugin}/images/#{source}"
+    elsif current_theme && current_theme.images.include?(source)
+      source = current_theme.image_path(source)
+    end
+    super source, options
+  end
+
+  # Overrides Rails' javascript_include_tag with plugins support
+  # Examples:
+  #   javascript_include_tag('scripts') # => picks scripts.js from defaults
+  #   javascript_include_tag('scripts', :plugin => 'foo) # => picks scripts.js from plugin's assets
+  #
+  def javascript_include_tag(*sources)
+    options = sources.last.is_a?(Hash) ? sources.pop : {}
+    if plugin = options.delete(:plugin)
+      sources = sources.map do |source|
+        if plugin
+          "/plugin_assets/#{plugin}/javascripts/#{source}"
+        else
+          source
+        end
+      end
+    end
+    super sources, options
+  end
+
   def content_for(name, content = nil, &block)
     @has_content ||= {}
     @has_content[name] = true
@@ -1053,6 +1107,14 @@ module ApplicationHelper
 
   def has_content?(name)
     (@has_content && @has_content[name]) || false
+  end
+
+  def sidebar_content?
+    has_content?(:sidebar) || view_layouts_base_sidebar_hook_response.present?
+  end
+
+  def view_layouts_base_sidebar_hook_response
+    @view_layouts_base_sidebar_hook_response ||= call_hook(:view_layouts_base_sidebar)
   end
 
   def email_delivery_enabled?

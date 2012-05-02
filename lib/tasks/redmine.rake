@@ -5,12 +5,12 @@
 # modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -51,17 +51,35 @@ namespace :redmine do
   namespace :plugins do
     desc 'Migrates installed plugins.'
     task :migrate => :environment do
-      Redmine::Plugin.all.each do |plugin|
-        puts "Migrating #{plugin.name}..."
-        plugin.migrate
+      name = ENV['name']
+      version = nil
+      version_string = ENV['version']
+      if version_string
+        if version_string =~ /^\d+$/
+          version = version_string.to_i
+          if name.nil?
+            abort "The VERSION argument requires a plugin NAME."
+          end
+        else
+          abort "Invalid version #{version_string} given."
+        end
+      end
+
+      begin
+        Redmine::Plugin.migrate(name, version)
+      rescue Redmine::PluginNotFound
+        abort "Plugin #{name} was not found."
       end
     end
 
     desc 'Copies plugins assets into the public directory.'
     task :assets => :environment do
-      Redmine::Plugin.all.each do |plugin|
-        puts "Copying #{plugin.name} assets..."
-        plugin.mirror_assets
+      name = ENV['name']
+
+      begin
+        Redmine::Plugin.mirror_assets(name)
+      rescue Redmine::PluginNotFound
+        abort "Plugin #{name} was not found."
       end
     end
   end

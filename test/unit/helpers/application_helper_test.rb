@@ -725,6 +725,13 @@ EXPECTED
     assert_equal expected.gsub(%r{[\r\n\t]}, ''), textilizable(raw).gsub(%r{[\r\n\t]}, '')
   end
 
+  def test_to_path_param
+    assert_equal 'test1/test2', to_path_param('test1/test2')
+    assert_equal 'test1/test2', to_path_param('/test1/test2/')
+    assert_equal 'test1/test2', to_path_param('//test1/test2/')
+    assert_equal nil, to_path_param('/')
+  end
+
   def test_wiki_links_in_tables
     to_test = {"|[[Page|Link title]]|[[Other Page|Other title]]|\n|Cell 21|[[Last page]]|" =>
                  '<tr><td><a href="/projects/ecookbook/wiki/Page" class="wiki-page new">Link title</a></td>' +
@@ -1044,5 +1051,41 @@ RAW
     users = [User.find(2), User.find(4)]
     User.current = User.find(4)
     assert_include '<option value="4"><< me >></option>', principals_options_for_select(users)
+  end
+
+  def test_stylesheet_link_tag_should_pick_the_default_stylesheet
+    assert_match 'href="/stylesheets/styles.css"', stylesheet_link_tag("styles")
+  end
+
+  def test_stylesheet_link_tag_for_plugin_should_pick_the_plugin_stylesheet
+    assert_match 'href="/plugin_assets/foo/stylesheets/styles.css"', stylesheet_link_tag("styles", :plugin => :foo)
+  end
+
+  def test_image_tag_should_pick_the_default_image
+    assert_match 'src="/images/image.png"', image_tag("image.png")
+  end
+
+  def test_image_tag_should_pick_the_theme_image_if_it_exists
+    theme = Redmine::Themes.themes.last
+    theme.images << 'image.png'
+
+    with_settings :ui_theme => theme.id do
+      assert_match %|src="/themes/#{theme.dir}/images/image.png"|, image_tag("image.png")
+      assert_match %|src="/images/other.png"|, image_tag("other.png")
+    end
+  ensure
+    theme.images.delete 'image.png'
+  end
+
+  def test_image_tag_sfor_plugin_should_pick_the_plugin_image
+    assert_match 'src="/plugin_assets/foo/images/image.png"', image_tag("image.png", :plugin => :foo)
+  end
+
+  def test_javascript_include_tag_should_pick_the_default_javascript
+    assert_match 'src="/javascripts/scripts.js"', javascript_include_tag("scripts")
+  end
+
+  def test_javascript_include_tag_for_plugin_should_pick_the_plugin_javascript
+    assert_match 'src="/plugin_assets/foo/javascripts/scripts.js"', javascript_include_tag("scripts", :plugin => :foo)
   end
 end
