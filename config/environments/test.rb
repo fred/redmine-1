@@ -1,4 +1,4 @@
-# Settings specified here will take precedence over those in config/environment.rb
+# Settings specified here will take precedence over those in config/application.rb
 RedmineApp::Application.configure do
   # The test environment is used exclusively to run your application's
   # test suite.  You never need to work with it otherwise.  Remember that
@@ -14,9 +14,14 @@ RedmineApp::Application.configure do
   config.action_controller.perform_caching = false
 
   config.action_mailer.perform_deliveries = true
+
+  # Tell Action Mailer not to deliver emails to the real world.
+  # The :test delivery method accumulates sent emails in the
+  # ActionMailer::Base.deliveries array.
   config.action_mailer.delivery_method = :test
 
-  # Skip protect_from_forgery in requests http://m.onkey.org/2007/9/28/csrf-protection-for-your-existing-rails-application
+  # Skip protect_from_forgery in requests
+  # http://m.onkey.org/2007/9/28/csrf-protection-for-your-existing-rails-application
   config.action_controller.allow_forgery_protection = false
 
   config.active_support.deprecation = :log

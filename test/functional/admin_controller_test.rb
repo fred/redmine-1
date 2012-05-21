@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -98,7 +98,7 @@ class AdminControllerTest < ActionController::TestCase
   end
 
   def test_test_email_failure_should_display_the_error
-    Mailer.stubs(:deliver_test_email).raises(Exception, 'Some error message')
+    Mailer.stubs(:test_email).raises(Exception, 'Some error message')
     get :test_email
     assert_redirected_to '/settings/edit?tab=notifications'
     assert_match /Some error message/, flash[:error]

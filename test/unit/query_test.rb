@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -48,9 +48,9 @@ class QueryTest < ActiveSupport::TestCase
   end
 
   def find_issues_with_query(query)
-    Issue.find :all,
-      :include => [ :assigned_to, :status, :tracker, :project, :priority ],
-      :conditions => query.statement
+    Issue.includes([:assigned_to, :status, :tracker, :project, :priority]).where(
+         query.statement
+       ).all
   end
 
   def assert_find_issues_with_query_is_successful(query)
@@ -112,6 +112,15 @@ class QueryTest < ActiveSupport::TestCase
     assert issues.all? {|i| i.start_date.nil?}
   end
 
+  def test_operator_none_for_string_custom_field
+    query = Query.new(:project => Project.find(1), :name => '_')
+    query.add_filter('cf_2', '!*', [''])
+    assert query.has_filter?('cf_2')
+    issues = find_issues_with_query(query)
+    assert !issues.empty?
+    assert issues.all? {|i| i.custom_field_value(2).blank?}
+  end
+
   def test_operator_all
     query = Query.new(:project => Project.find(1), :name => '_')
     query.add_filter('fixed_version_id', '*', [''])
@@ -127,6 +136,15 @@ class QueryTest < ActiveSupport::TestCase
     issues = find_issues_with_query(query)
     assert !issues.empty?
     assert issues.all? {|i| i.start_date.present?}
+  end
+
+  def test_operator_all_for_string_custom_field
+    query = Query.new(:project => Project.find(1), :name => '_')
+    query.add_filter('cf_2', '*', [''])
+    assert query.has_filter?('cf_2')
+    issues = find_issues_with_query(query)
+    assert !issues.empty?
+    assert issues.all? {|i| i.custom_field_value(2).present?}
   end
 
   def test_numeric_filter_should_not_accept_non_numeric_values
@@ -619,10 +637,9 @@ class QueryTest < ActiveSupport::TestCase
     c = q.available_columns.find {|col| col.is_a?(QueryCustomFieldColumn) && col.custom_field.field_format == 'string' }
     assert c
     assert c.sortable
-    issues = Issue.find :all,
-                        :include => [ :assigned_to, :status, :tracker, :project, :priority ],
-                        :conditions => q.statement,
-                        :order => "#{c.sortable} ASC"
+    issues = Issue.includes([:assigned_to, :status, :tracker, :project, :priority]).where(
+         q.statement
+       ).order("#{c.sortable} ASC").all
     values = issues.collect {|i| i.custom_value_for(c.custom_field).to_s}
     assert !values.empty?
     assert_equal values.sort, values
@@ -633,10 +650,9 @@ class QueryTest < ActiveSupport::TestCase
     c = q.available_columns.find {|col| col.is_a?(QueryCustomFieldColumn) && col.custom_field.field_format == 'string' }
     assert c
     assert c.sortable
-    issues = Issue.find :all,
-                        :include => [ :assigned_to, :status, :tracker, :project, :priority ],
-                        :conditions => q.statement,
-                        :order => "#{c.sortable} DESC"
+    issues = Issue.includes([:assigned_to, :status, :tracker, :project, :priority]).where(
+         q.statement
+       ).order("#{c.sortable} DESC").all
     values = issues.collect {|i| i.custom_value_for(c.custom_field).to_s}
     assert !values.empty?
     assert_equal values.sort.reverse, values
@@ -647,10 +663,9 @@ class QueryTest < ActiveSupport::TestCase
     c = q.available_columns.find {|col| col.is_a?(QueryCustomFieldColumn) && col.custom_field.field_format == 'float' }
     assert c
     assert c.sortable
-    issues = Issue.find :all,
-                        :include => [ :assigned_to, :status, :tracker, :project, :priority ],
-                        :conditions => q.statement,
-                        :order => "#{c.sortable} ASC"
+    issues = Issue.includes([:assigned_to, :status, :tracker, :project, :priority]).where(
+         q.statement
+       ).order("#{c.sortable} ASC").all
     values = issues.collect {|i| begin; Kernel.Float(i.custom_value_for(c.custom_field).to_s); rescue; nil; end}.compact
     assert !values.empty?
     assert_equal values.sort, values

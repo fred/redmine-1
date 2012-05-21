@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -74,6 +74,9 @@ class UsersControllerTest < ActionController::TestCase
     users = assigns(:users)
     assert users.any?
     assert_equal([], (users - Group.find(10).users))
+    assert_select 'select[name=group_id]' do
+      assert_select 'option[value=10][selected=selected]'
+    end
   end
 
   def test_show

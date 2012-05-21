@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -54,28 +54,6 @@ class Repository < ActiveRecord::Base
       attr_name = "commit_logs_encoding"
     end
     super(attr_name, *args)
-  end
-
-  alias :attributes_without_extra_info= :attributes=
-  def attributes=(new_attributes)
-    return if new_attributes.nil?
-    attributes = new_attributes.dup
-    attributes.stringify_keys!
-
-    p       = {}
-    p_extra = {}
-    attributes.each do |k, v|
-      if k =~ /^extra_/
-        p_extra[k] = v
-      else
-        p[k] = v
-      end
-    end
-
-    send :attributes_without_extra_info=, p
-    if p_extra.keys.any?
-      merge_extra_info(p_extra)
-    end
   end
 
   # Removes leading and trailing whitespace
@@ -141,7 +119,7 @@ class Repository < ActiveRecord::Base
     elsif repository.is_default?
       1
     else
-      identifier <=> repository.identifier
+      identifier.to_s <=> repository.identifier.to_s
     end
   end
 

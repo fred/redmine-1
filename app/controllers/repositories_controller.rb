@@ -46,7 +46,11 @@ class RepositoriesController < ApplicationController
   end
 
   def create
-    @repository = Repository.factory(params[:repository_scm], params[:repository])
+    attrs = pickup_extra_info
+    @repository = Repository.factory(params[:repository_scm], attrs[:attrs])
+    if attrs[:attrs_extra].keys.any?
+      @repository.merge_extra_info(attrs[:attrs_extra])
+    end
     @repository.project = @project
     if request.post? && @repository.save
       redirect_to settings_project_path(@project, :tab => 'repositories')
@@ -59,7 +63,11 @@ class RepositoriesController < ApplicationController
   end
 
   def update
-    @repository.attributes = params[:repository]
+    attrs = pickup_extra_info
+    @repository.attributes = attrs[:attrs]
+    if attrs[:attrs_extra].keys.any?
+      @repository.merge_extra_info(attrs[:attrs_extra])
+    end
     @repository.project = @project
     if request.put? && @repository.save
       redirect_to settings_project_path(@project, :tab => 'repositories')
@@ -67,6 +75,20 @@ class RepositoriesController < ApplicationController
       render :action => 'edit'
     end
   end
+
+  def pickup_extra_info
+    p       = {}
+    p_extra = {}
+    params[:repository].each do |k, v|
+      if k =~ /^extra_/
+        p_extra[k] = v
+      else
+        p[k] = v
+      end
+    end
+    {:attrs => p, :attrs_extra => p_extra}
+  end
+  private :pickup_extra_info
 
   def committers
     @committers = @repository.committers
@@ -130,7 +152,15 @@ class RepositoriesController < ApplicationController
     end
   end
 
+  def raw
+    entry_and_raw(true)
+  end
+
   def entry
+    entry_and_raw(false)
+  end
+
+  def entry_and_raw(is_raw)
     @entry = @repository.entry(@path, @rev)
     (show_error_not_found; return) unless @entry
 
@@ -139,7 +169,7 @@ class RepositoriesController < ApplicationController
 
     @content = @repository.cat(@path, @rev)
     (show_error_not_found; return) unless @content
-    if 'raw' == params[:format] ||
+    if is_raw ||
          (@content.size && @content.size > Setting.file_max_size_displayed.to_i.kilobyte) ||
          ! is_entry_text_data?(@content, @path)
       # Force the download
@@ -155,6 +185,7 @@ class RepositoriesController < ApplicationController
       @changeset = @repository.find_changeset_by_name(@rev)
     end
   end
+  private :entry_and_raw
 
   def is_entry_text_data?(ent, path)
     # UTF-16 contains "\x00".

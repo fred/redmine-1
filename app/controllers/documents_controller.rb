@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -86,7 +86,9 @@ class DocumentsController < ApplicationController
     attachments = Attachment.attach_files(@document, params[:attachments])
     render_attachment_warning_if_needed(@document)
 
-    Mailer.deliver_attachments_added(attachments[:files]) if attachments.present? && attachments[:files].present? && Setting.notified_events.include?('document_added')
+    if attachments.present? && attachments[:files].present? && Setting.notified_events.include?('document_added')
+      Mailer.attachments_added(attachments[:files]).deliver
+    end
     redirect_to :action => 'show', :id => @document
   end
 end

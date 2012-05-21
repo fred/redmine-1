@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -41,7 +41,7 @@ class Redmine::Views::LabelledFormBuilder < ActionView::Helpers::FormBuilder
       text ||= l(("field_" + field.to_s.gsub(/\_id$/, "")).to_sym)
       text += @template.content_tag("span", " *", :class => "required") if options.delete(:required)
       @template.content_tag("label", text.html_safe,
-                                     :class => (@object && @object.errors[field] ? "error" : nil),
+                                     :class => (@object && @object.errors[field].present? ? "error" : nil),
                                      :for => (@object_name.to_s + "_" + field.to_s))
   end
 end

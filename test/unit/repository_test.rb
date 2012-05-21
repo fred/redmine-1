@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -98,9 +98,8 @@ class RepositoryTest < ActiveSupport::TestCase
   end
 
   def test_destroy
-    changesets = Changeset.count(:all, :conditions => "repository_id = 10")
-    changes = Change.count(:all, :conditions => "repository_id = 10",
-                           :joins => :changeset)
+    changesets = Changeset.where("repository_id = 10").all.count
+    changes = Changeset.joins([:changes]).where("repository_id = 10").all.count
     assert_difference 'Changeset.count', -changesets do
       assert_difference 'Change.count', -changes do
         Repository.find(10).destroy
@@ -317,5 +316,14 @@ class RepositoryTest < ActiveSupport::TestCase
     assert_nil repo.extra_info["test_2"]["test_21"]
     assert_equal "test_value_23",
                  repo.extra_info["test_2"]["test_23"]
+  end
+
+  def test_sort_should_not_raise_an_error_with_nil_identifiers
+    r1 = Repository.new
+    r2 = Repository.new
+
+    assert_nothing_raised do
+      [r1, r2].sort
+    end
   end
 end

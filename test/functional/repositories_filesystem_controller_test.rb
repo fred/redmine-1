@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -78,8 +78,7 @@ class RepositoriesFilesystemControllerTest < ActionController::TestCase
     end
 
     def test_entry_download_no_extension
-      get :entry, :id => PRJ_ID, :path => repository_path_hash(['test'])[:param],
-          :format => 'raw'
+      get :raw, :id => PRJ_ID, :path => repository_path_hash(['test'])[:param]
       assert_response :success
       assert_equal 'application/octet-stream', @response.content_type
     end

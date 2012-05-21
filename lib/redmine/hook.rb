@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -17,8 +17,6 @@
 
 module Redmine
   module Hook
-    #include ActionController::UrlWriter
-
     @@listener_classes = []
     @@listeners = nil
     @@hook_listeners = {}
@@ -88,7 +86,6 @@ module Redmine
       include ActionView::Helpers::FormTagHelper
       include ActionView::Helpers::FormOptionsHelper
       include ActionView::Helpers::JavaScriptHelper
-      #include ActionView::Helpers::PrototypeHelper
       include ActionView::Helpers::NumberHelper
       include ActionView::Helpers::UrlHelper
       include ActionView::Helpers::AssetTagHelper

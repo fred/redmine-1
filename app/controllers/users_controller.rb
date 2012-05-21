@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -99,7 +99,7 @@ class UsersController < ApplicationController
       @user.pref.save
       @user.notified_project_ids = (@user.mail_notification == 'selected' ? params[:notified_project_ids] : [])
 
-      Mailer.deliver_account_information(@user, params[:user][:password]) if params[:send_information]
+      Mailer.account_information(@user, params[:user][:password]).deliver if params[:send_information]
 
       respond_to do |format|
         format.html {
@@ -146,9 +146,9 @@ class UsersController < ApplicationController
       @user.notified_project_ids = (@user.mail_notification == 'selected' ? params[:notified_project_ids] : [])
 
       if was_activated
-        Mailer.deliver_account_activated(@user)
+        Mailer.account_activated(@user).deliver
       elsif @user.active? && params[:send_information] && !params[:user][:password].blank? && @user.auth_source_id.nil?
-        Mailer.deliver_account_information(@user, params[:user][:password])
+        Mailer.account_information(@user, params[:user][:password]).deliver
       end
 
       respond_to do |format|
@@ -174,7 +174,7 @@ class UsersController < ApplicationController
   def destroy
     @user.destroy
     respond_to do |format|
-      format.html { redirect_to(users_url) }
+      format.html { redirect_to_referer_or(users_url) }
       format.api  { head :ok }
     end
   end

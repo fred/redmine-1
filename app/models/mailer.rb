@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -27,11 +27,11 @@ class Mailer < ActionMailer::Base
     { :host => Setting.host_name, :protocol => Setting.protocol }
   end
 
-  # Builds a tmail object used to email recipients of the added issue.
+  # Builds a Mail::Message object used to email recipients of the added issue.
   #
   # Example:
-  #   issue_add(issue) => tmail object
-  #   Mailer.deliver_issue_add(issue) => sends an email to issue recipients
+  #   issue_add(issue) => Mail::Message object
+  #   Mailer.issue_add(issue).deliver => sends an email to issue recipients
   def issue_add(issue)
     redmine_headers 'Project' => issue.project.identifier,
                     'Issue-Id' => issue.id,
@@ -48,11 +48,11 @@ class Mailer < ActionMailer::Base
       :subject => "[#{issue.project.name} - #{issue.tracker.name} ##{issue.id}] (#{issue.status.name}) #{issue.subject}"
   end
 
-  # Builds a tmail object used to email recipients of the edited issue.
+  # Builds a Mail::Message object used to email recipients of the edited issue.
   #
   # Example:
-  #   issue_edit(journal) => tmail object
-  #   Mailer.deliver_issue_edit(journal) => sends an email to issue recipients
+  #   issue_edit(journal) => Mail::Message object
+  #   Mailer.issue_edit(journal).deliver => sends an email to issue recipients
   def issue_edit(journal)
     issue = journal.journalized.reload
     redmine_headers 'Project' => issue.project.identifier,
@@ -87,11 +87,11 @@ class Mailer < ActionMailer::Base
       :subject => l(:mail_subject_reminder, :count => issues.size, :days => days)
   end
 
-  # Builds a tmail object used to email users belonging to the added document's project.
+  # Builds a Mail::Message object used to email users belonging to the added document's project.
   #
   # Example:
-  #   document_added(document) => tmail object
-  #   Mailer.deliver_document_added(document) => sends an email to the document's project recipients
+  #   document_added(document) => Mail::Message object
+  #   Mailer.document_added(document).deliver => sends an email to the document's project recipients
   def document_added(document)
     redmine_headers 'Project' => document.project.identifier
     @author = User.current
@@ -101,11 +101,11 @@ class Mailer < ActionMailer::Base
       :subject => "[#{document.project.name}] #{l(:label_document_new)}: #{document.title}"
   end
 
-  # Builds a tmail object used to email recipients of a project when an attachements are added.
+  # Builds a Mail::Message object used to email recipients of a project when an attachements are added.
   #
   # Example:
-  #   attachments_added(attachments) => tmail object
-  #   Mailer.deliver_attachments_added(attachments) => sends an email to the project's recipients
+  #   attachments_added(attachments) => Mail::Message object
+  #   Mailer.attachments_added(attachments).deliver => sends an email to the project's recipients
   def attachments_added(attachments)
     container = attachments.first.container
     added_to = ''
@@ -133,11 +133,11 @@ class Mailer < ActionMailer::Base
       :subject => "[#{container.project.name}] #{l(:label_attachment_new)}"
   end
 
-  # Builds a tmail object used to email recipients of a news' project when a news item is added.
+  # Builds a Mail::Message object used to email recipients of a news' project when a news item is added.
   #
   # Example:
-  #   news_added(news) => tmail object
-  #   Mailer.deliver_news_added(news) => sends an email to the news' project recipients
+  #   news_added(news) => Mail::Message object
+  #   Mailer.news_added(news).deliver => sends an email to the news' project recipients
   def news_added(news)
     redmine_headers 'Project' => news.project.identifier
     @author = news.author
@@ -148,10 +148,10 @@ class Mailer < ActionMailer::Base
       :subject => "[#{news.project.name}] #{l(:label_news)}: #{news.title}"
   end
 
-  # Builds a tmail object used to email recipients of a news' project when a news comment is added.
+  # Builds a Mail::Message object used to email recipients of a news' project when a news comment is added.
   #
   # Example:
-  #   news_comment_added(comment) => tmail object
+  #   news_comment_added(comment) => Mail::Message object
   #   Mailer.news_comment_added(comment) => sends an email to the news' project recipients
   def news_comment_added(comment)
     news = comment.commented
@@ -166,11 +166,11 @@ class Mailer < ActionMailer::Base
      :subject => "Re: [#{news.project.name}] #{l(:label_news)}: #{news.title}"
   end
 
-  # Builds a tmail object used to email the recipients of the specified message that was posted.
+  # Builds a Mail::Message object used to email the recipients of the specified message that was posted.
   #
   # Example:
-  #   message_posted(message) => tmail object
-  #   Mailer.deliver_message_posted(message) => sends an email to the recipients
+  #   message_posted(message) => Mail::Message object
+  #   Mailer.message_posted(message).deliver => sends an email to the recipients
   def message_posted(message)
     redmine_headers 'Project' => message.project.identifier,
                     'Topic-Id' => (message.parent_id || message.id)
@@ -186,11 +186,11 @@ class Mailer < ActionMailer::Base
       :subject => "[#{message.board.project.name} - #{message.board.name} - msg#{message.root.id}] #{message.subject}"
   end
 
-  # Builds a tmail object used to email the recipients of a project of the specified wiki content was added.
+  # Builds a Mail::Message object used to email the recipients of a project of the specified wiki content was added.
   #
   # Example:
-  #   wiki_content_added(wiki_content) => tmail object
-  #   Mailer.deliver_wiki_content_added(wiki_content) => sends an email to the project's recipients
+  #   wiki_content_added(wiki_content) => Mail::Message object
+  #   Mailer.wiki_content_added(wiki_content).deliver => sends an email to the project's recipients
   def wiki_content_added(wiki_content)
     redmine_headers 'Project' => wiki_content.project.identifier,
                     'Wiki-Page-Id' => wiki_content.page.id
@@ -207,11 +207,11 @@ class Mailer < ActionMailer::Base
       :subject => "[#{wiki_content.project.name}] #{l(:mail_subject_wiki_content_added, :id => wiki_content.page.pretty_title)}"
   end
 
-  # Builds a tmail object used to email the recipients of a project of the specified wiki content was updated.
+  # Builds a Mail::Message object used to email the recipients of a project of the specified wiki content was updated.
   #
   # Example:
-  #   wiki_content_updated(wiki_content) => tmail object
-  #   Mailer.deliver_wiki_content_updated(wiki_content) => sends an email to the project's recipients
+  #   wiki_content_updated(wiki_content) => Mail::Message object
+  #   Mailer.wiki_content_updated(wiki_content).deliver => sends an email to the project's recipients
   def wiki_content_updated(wiki_content)
     redmine_headers 'Project' => wiki_content.project.identifier,
                     'Wiki-Page-Id' => wiki_content.page.id
@@ -231,11 +231,11 @@ class Mailer < ActionMailer::Base
       :subject => "[#{wiki_content.project.name}] #{l(:mail_subject_wiki_content_updated, :id => wiki_content.page.pretty_title)}"
   end
 
-  # Builds a tmail object used to email the specified user their account information.
+  # Builds a Mail::Message object used to email the specified user their account information.
   #
   # Example:
-  #   account_information(user, password) => tmail object
-  #   Mailer.deliver_account_information(user, password) => sends account information to the user
+  #   account_information(user, password) => Mail::Message object
+  #   Mailer.account_information(user, password).deliver => sends account information to the user
   def account_information(user, password)
     set_language_if_valid user.language
     @user = user
@@ -245,11 +245,11 @@ class Mailer < ActionMailer::Base
       :subject => l(:mail_subject_register, Setting.app_title)
   end
 
-  # Builds a tmail object used to email all active administrators of an account activation request.
+  # Builds a Mail::Message object used to email all active administrators of an account activation request.
   #
   # Example:
-  #   account_activation_request(user) => tmail object
-  #   Mailer.deliver_account_activation_request(user)=> sends an email to all active administrators
+  #   account_activation_request(user) => Mail::Message object
+  #   Mailer.account_activation_request(user).deliver => sends an email to all active administrators
   def account_activation_request(user)
     # Send the email to all active administrators
     recipients = User.active.find(:all, :conditions => {:admin => true}).collect { |u| u.mail }.compact
@@ -261,11 +261,11 @@ class Mailer < ActionMailer::Base
       :subject => l(:mail_subject_account_activation_request, Setting.app_title)
   end
 
-  # Builds a tmail object used to email the specified user that their account was activated by an administrator.
+  # Builds a Mail::Message object used to email the specified user that their account was activated by an administrator.
   #
   # Example:
-  #   account_activated(user) => tmail object
-  #   Mailer.deliver_account_activated(user) => sends an email to the registered user
+  #   account_activated(user) => Mail::Message object
+  #   Mailer.account_activated(user).deliver => sends an email to the registered user
   def account_activated(user)
     set_language_if_valid user.language
     @user = user
@@ -344,7 +344,7 @@ class Mailer < ActionMailer::Base
 
     issues_by_assignee = scope.all(:include => [:status, :assigned_to, :project, :tracker]).group_by(&:assigned_to)
     issues_by_assignee.each do |assignee, issues|
-      deliver_reminder(assignee, issues, days) if assignee.is_a?(User) && assignee.active?
+      reminder(assignee, issues, days).deliver if assignee.is_a?(User) && assignee.active?
     end
   end
 
@@ -374,7 +374,8 @@ class Mailer < ActionMailer::Base
             'X-Redmine-Site' => Setting.app_title,
             'X-Auto-Response-Suppress' => 'OOF',
             'Auto-Submitted' => 'auto-generated',
-            'From' => Setting.mail_from
+            'From' => Setting.mail_from,
+            'List-Id' => "<#{Setting.mail_from.to_s.gsub('@', '.')}>"
 
     # Removes the author from the recipients and cc
     # if he doesn't want to receive notifications about what he does
@@ -422,6 +423,7 @@ class Mailer < ActionMailer::Base
 
   def self.method_missing(method, *args, &block)
     if m = method.to_s.match(%r{^deliver_(.+)$})
+      ActiveSupport::Deprecation.warn "Mailer.deliver_#{m[1]}(*args) is deprecated. Use Mailer.#{m[1]}(*args).deliver instead."
       send(m[1], *args).deliver
     else
       super

@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -105,6 +105,9 @@ class EnumerationsControllerTest < ActionController::TestCase
     assert_response :success
     assert_template 'destroy'
     assert_not_nil Enumeration.find_by_id(4)
+    assert_select 'select[name=reassign_to_id]' do
+      assert_select 'option[value=6]', :text => 'High'
+    end
   end
 
   def test_destroy_enumeration_in_use_with_reassignment

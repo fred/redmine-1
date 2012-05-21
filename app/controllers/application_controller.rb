@@ -1,5 +1,5 @@
 # Redmine - project management software
-# Copyright (C) 2006-2011  Jean-Philippe Lang
+# Copyright (C) 2006-2012  Jean-Philippe Lang
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -33,17 +33,6 @@ class ApplicationController < ActionController::Base
   def handle_unverified_request
     super
     cookies.delete(:autologin)
-  end
-  # Remove broken cookie after upgrade from 0.8.x (#4292)
-  # See https://rails.lighthouseapp.com/projects/8994/tickets/3360
-  # TODO: remove it when Rails is fixed
-  before_filter :delete_broken_cookies
-  def delete_broken_cookies
-    if cookies['_redmine_session'] && cookies['_redmine_session'] !~ /--/
-      cookies.delete '_redmine_session'
-      redirect_to home_path
-      return false
-    end
   end
 
   before_filter :user_setup, :check_if_login_required, :set_localization
