@@ -10,14 +10,14 @@
 #   }
 # end
 
-if Rails.env.production? && ENV['POSTMARK_APP']
+if Rails.env.production? && ENV['POSTMARK_KEY']
   ActionMailer::Base.delivery_method = :smtp
   ActionMailer::Base.smtp_settings = {
     :address        => 'smtp.postmarkapp.com',
     :port           => '25',
     :authentication => :cram_md5,
-    :user_name      => ENV['POSTMARK_APP'],
-    :password       => ENV['POSTMARK_APP'],
+    :user_name      => ENV['POSTMARK_KEY'],
+    :password       => ENV['POSTMARK_KEY'],
     :domain         => 'worldmathaba.net'
   }
 end
