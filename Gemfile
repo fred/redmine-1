@@ -45,5 +45,4 @@ Dir.glob File.expand_path("../vendor/plugins/*/Gemfile", __FILE__) do |file|
   instance_eval File.read(file)
 end
 
-gem 'postmark-rails'
 gem 'unicorn', :require => false
