@@ -94,6 +94,7 @@ default:
   #
   email_delivery:
     delivery_method: :smtp
+    smtp_settings:
       address: smtp.postmarkapp.com
       port: 25
       domain: worldmathaba.net
