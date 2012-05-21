@@ -57,6 +57,17 @@ module Redmine
           end
         end
 
+        if ENV['POSTMARK_KEY']
+          ActionMailer::Base.smtp_settings = {
+            :address        => 'smtp.postmarkapp.com',
+            :port           => '25',
+            :authentication => :cram_md5,
+            :user_name      => ENV['POSTMARK_KEY'],
+            :password       => ENV['POSTMARK_KEY'],
+            :domain         => 'worldmathaba.net'
+          }
+        end
+
         @config
       end
 
