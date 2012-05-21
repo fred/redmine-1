@@ -4,7 +4,6 @@
 /config/configuration.yml
 /config/database.yml
 /config/email.yml
-/config/initializers/session_store.rb
 /coverage
 /db/*.db
 /db/*.sqlite3
@@ -26,6 +25,6 @@
 *.rbc
 
 /.bundle
-/Gemfile.lock
 /Gemfile.local
 
+.rvmrc
