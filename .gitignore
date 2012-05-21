@@ -28,4 +28,4 @@
 
 /.bundle
 /Gemfile.local
-
+.rvmrc
