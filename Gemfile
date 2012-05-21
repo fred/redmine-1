@@ -49,3 +49,4 @@ Dir.glob File.expand_path("../plugins/*/Gemfile", __FILE__) do |file|
 end
 
 gem 'postmark-rails'
+gem 'unicorn', :require => false
